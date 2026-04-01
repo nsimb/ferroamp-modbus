@@ -6,7 +6,7 @@
 
 A Home Assistant custom integration for the **Ferroamp Energy Hub** using Modbus TCP. Provides real-time monitoring of solar production, battery state, grid power, and control of battery mode and grid import/export limits.
 
-> **Prerequisite:** Modbus TCP must be enabled on your Ferroamp Energy Hub. If it is not, contact [Ferroamp support](https://ferroamp.com/contact/) to have it activated.
+> **Prerequisite:** Modbus TCP must be enabled on your Ferroamp Energy Hub. If it is not, contact [Ferroamp support](https://support.ferroamp.com/sv-SE/support/tickets/new) to have it activated.
 > 
 > **Prerequisite:** The system's Operation Settings in portal.ferroamp.com must be set to "PEAK SHAVING".
 
