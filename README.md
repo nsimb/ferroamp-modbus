@@ -9,6 +9,10 @@ A Home Assistant custom integration for the **Ferroamp Energy Hub** using Modbus
 > **Prerequisite:** Modbus TCP must be enabled on your Ferroamp Energy Hub. If it is not, contact [Ferroamp support](https://support.ferroamp.com/sv-SE/support/tickets/new) to have it activated.
 > 
 > **Prerequisite:** The system's Operation Settings in portal.ferroamp.com must be set to "PEAK SHAVING".
+> 
+> **Security note:** Modbus TCP communicates without authentication, so do not expose the Ferroamp Energy Hub directly to the Internet without a proper firewall in place.
+
+> **Disclaimer:** This integration can affect your energy system and network. Only use it if you understand what you are doing; if you are unsure, do not continue and do not hold the author responsible for unintended consequences.
 
 ---
 
