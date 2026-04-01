@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Ferroamp Energy Hub",
+        "description": "Enter the Modbus TCP connection details for your Ferroamp Energy Hub.",
+        "data": {
+          "host": "Host (IP address)",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the Ferroamp hub on port 502. Check the IP address and verify that Modbus TCP is enabled on the device. If Modbus TCP has not been activated, contact Ferroamp support.",
+      "unknown": "Unexpected error. Check the Home Assistant logs for details."
+    },
+    "abort": {
+      "already_configured": "This Ferroamp hub is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ferroamp Modbus Options",
+        "data": {
+          "host": "Host (IP address)",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the Ferroamp hub on port 502. Check the IP address and verify that Modbus TCP is enabled on the device. If Modbus TCP has not been activated, contact Ferroamp support.",
+      "unknown": "Unexpected error. Check the Home Assistant logs for details."
+    }
+  }
+}
