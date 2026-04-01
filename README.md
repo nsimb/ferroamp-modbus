@@ -115,12 +115,12 @@ condition: []
 action:
   - service: number.set_value
     target:
-      entity_id: number.fmb_import_threshold
+      entity_id: number.ferroamp_energy_hub_import_threshold
     data:
       value: -11000
   - service: number.set_value
     target:
-      entity_id: number.fmb_export_threshold
+      entity_id: number.ferroamp_energy_hub_export_threshold
     data:
       value: 11000
 mode: single
