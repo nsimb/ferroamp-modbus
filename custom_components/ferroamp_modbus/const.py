@@ -1,8 +1,7 @@
 """Constants for the Ferroamp Modbus integration."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 
@@ -12,7 +11,6 @@ DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 30
 FAST_SCAN_INTERVAL = 5
 
-CONF_SCAN_INTERVAL = "scan_interval"
 CONF_MIN_VALUE = "min_value"
 CONF_MAX_VALUE = "max_value"
 
@@ -39,11 +37,11 @@ class SensorDefinition:
     address: int
     input_type: str  # REG_INPUT or REG_HOLDING
     data_type: str   # DTYPE_*
-    unit: Optional[str] = None
-    device_class: Optional[str] = None
-    state_class: Optional[str] = None
+    unit: str | None = None
+    device_class: str | None = None
+    state_class: str | None = None
     scan_interval: int = DEFAULT_SCAN_INTERVAL
-    icon: Optional[str] = None
+    icon: str | None = None
     as_int: bool = False
 
 
@@ -56,7 +54,19 @@ class BinarySensorDefinition:
     address: int
     input_type: str = REG_INPUT
     scan_interval: int = FAST_SCAN_INTERVAL
-    icon: Optional[str] = None
+    icon: str | None = None
+
+
+@dataclass
+class SwitchDefinition:
+    """Describes a writable Modbus on/off control register."""
+
+    key: str
+    name: str
+    write_address: int   # holding register: 1 = on, 0 = off
+    apply_address: int   # holding register to pulse after writing
+    status_key: str      # key in coordinator.data (from binary sensor) for current state
+    icon: str | None = None
 
 
 @dataclass
@@ -65,16 +75,15 @@ class NumberDefinition:
 
     key: str
     name: str
-    read_address: int   # address of the *System Value* sensor to read state from
-    write_address: int  # address to write the float32 value
+    write_address: int  # address to write the float32 value (also read-back address)
     apply_address: int  # address to write [1] to apply the change
     unit: str
-    device_class: Optional[str] = None
+    device_class: str | None = None
     min_value: float = DEFAULT_MIN_VALUE
     max_value: float = DEFAULT_MAX_VALUE
     step: float = 1.0
     scan_interval: int = FAST_SCAN_INTERVAL
-    icon: Optional[str] = None
+    icon: str | None = None
     as_int: bool = False
 
 
@@ -108,8 +117,6 @@ SENSOR_DEFINITIONS: list[SensorDefinition] = [
         address=2000,
         input_type=REG_INPUT,
         data_type=DTYPE_UINT16,
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.ENUM,
         icon="mdi:information-outline",
     ),
     SensorDefinition(
@@ -332,7 +339,7 @@ SENSOR_DEFINITIONS: list[SensorDefinition] = [
         address=3104,
         input_type=REG_INPUT,
         data_type=DTYPE_FLOAT32,
-        unit="kVAr",
+        unit="kvar",
         device_class=SensorDeviceClass.REACTIVE_POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
@@ -671,8 +678,7 @@ NUMBER_DEFINITIONS: list[NumberDefinition] = [
     NumberDefinition(
         key="import_threshold",
         name="Import Threshold",
-        read_address=8002,   # sensor.fmb_import_threshold_system_value
-        write_address=8002,  # write float32 word-swapped
+        write_address=8002,  # write float32 word-swapped; read-back via import_threshold_system_value
         apply_address=8006,  # write [1] to apply
         unit="W",
         device_class=SensorDeviceClass.POWER,
@@ -686,8 +692,7 @@ NUMBER_DEFINITIONS: list[NumberDefinition] = [
     NumberDefinition(
         key="export_threshold",
         name="Export Threshold",
-        read_address=8012,   # sensor.fmb_export_threshold_system_value
-        write_address=8012,  # write float32 word-swapped
+        write_address=8012,  # write float32 word-swapped; read-back via export_threshold_system_value
         apply_address=8016,  # write [1] to apply
         unit="W",
         device_class=SensorDeviceClass.POWER,
@@ -700,13 +705,26 @@ NUMBER_DEFINITIONS: list[NumberDefinition] = [
     ),
 ]
 
-# Convenience lookup by key
-SENSOR_DEFINITIONS_BY_KEY: dict[str, SensorDefinition] = {
-    s.key: s for s in SENSOR_DEFINITIONS
-}
-BINARY_SENSOR_DEFINITIONS_BY_KEY: dict[str, BinarySensorDefinition] = {
-    b.key: b for b in BINARY_SENSOR_DEFINITIONS
-}
-NUMBER_DEFINITIONS_BY_KEY: dict[str, NumberDefinition] = {
-    n.key: n for n in NUMBER_DEFINITIONS
-}
+# ---------------------------------------------------------------------------
+# Switch (writable on/off) entity definitions
+# ---------------------------------------------------------------------------
+
+SWITCH_DEFINITIONS: list[SwitchDefinition] = [
+    SwitchDefinition(
+        key="limit_import",
+        name="Limit Import",
+        write_address=8000,
+        apply_address=8006,
+        status_key="limit_import_active",
+        icon="mdi:transmission-tower-import",
+    ),
+    SwitchDefinition(
+        key="limit_export",
+        name="Limit Export",
+        write_address=8010,
+        apply_address=8016,
+        status_key="limit_export_active",
+        icon="mdi:transmission-tower-export",
+    ),
+]
+

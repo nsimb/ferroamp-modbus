@@ -17,13 +17,15 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.NUMBER,
+    Platform.SWITCH,
 ]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Ferroamp Modbus from a config entry."""
-    host = entry.data[CONF_HOST]
-    port = entry.data[CONF_PORT]
+    config = {**entry.data, **entry.options}
+    host = config[CONF_HOST]
+    port = config[CONF_PORT]
 
     hub = FerroampModbusHub(hass, host, port)
 
@@ -49,9 +51,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unloaded:
-        data = hass.data[DOMAIN].pop(entry.entry_id)
+    data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if data:
         await data["hub"].async_close()
+    if unloaded:
+        hass.data[DOMAIN].pop(entry.entry_id, None)
     return unloaded
 
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import struct
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
@@ -20,10 +19,6 @@ from .coordinator import FerroampModbusFastCoordinator
 from .entity import FerroampModbusEntity
 
 _LOGGER = logging.getLogger(__name__)
-
-# Name of the HA built-in modbus hub defined in configuration.yaml
-_MODBUS_HUB = DOMAIN
-_MODBUS_SLAVE = 1
 
 
 async def async_setup_entry(
@@ -69,6 +64,33 @@ class FerroampModbusNumber(FerroampModbusEntity, NumberEntity):
         if defn.icon:
             self._attr_icon = defn.icon
 
+    def _get_other_value(self, key: str) -> float | None:
+        """Return a rounded system value from the coordinator by sensor key."""
+        raw = (self.coordinator.data or {}).get(key)
+        if raw is None:
+            return None
+        return float(int(round(float(raw))))
+
+    @property
+    def native_min_value(self) -> float:
+        """Import threshold floor is the current export threshold."""
+        base = self._attr_native_min_value
+        if self._defn.key == "import_threshold":
+            export = self._get_other_value("export_threshold_system_value")
+            if export is not None:
+                return max(base, export)
+        return base
+
+    @property
+    def native_max_value(self) -> float:
+        """Export threshold ceiling is the current import threshold."""
+        base = self._attr_native_max_value
+        if self._defn.key == "export_threshold":
+            imp = self._get_other_value("import_threshold_system_value")
+            if imp is not None:
+                return min(base, imp)
+        return base
+
     @property
     def native_value(self) -> float | None:
         """Return the current value read back from the device."""
@@ -83,33 +105,20 @@ class FerroampModbusNumber(FerroampModbusEntity, NumberEntity):
         return round(float(raw), 1)
 
     async def async_set_native_value(self, value: float) -> None:
-        """Write the new threshold to the device via HA's modbus service."""
-        # Encode as big-endian float32, write word-swapped (CDAB order):
-        # [ bytes_2_3, bytes_0_1 ] — matches Ferroamp register layout
-        packed = struct.pack(">f", float(value))
-        high_word = struct.unpack(">H", packed[2:4])[0]
-        low_word = struct.unpack(">H", packed[0:2])[0]
-
-        await self.hass.services.async_call(
-            "modbus",
-            "write_register",
-            {
-                "hub": _MODBUS_HUB,
-                "address": self._defn.write_address,
-                "slave": _MODBUS_SLAVE,
-                "value": [high_word, low_word],
-            },
-            blocking=True,
+        """Write the new threshold directly via the Ferroamp Modbus hub."""
+        value = max(self.native_min_value, min(self.native_max_value, value))
+        _LOGGER.debug(
+            "ferroamp_modbus: writing %s = %s W (addr=%s apply=%s)",
+            self._defn.key, value, self._defn.write_address, self._defn.apply_address,
         )
-        await self.hass.services.async_call(
-            "modbus",
-            "write_register",
-            {
-                "hub": _MODBUS_HUB,
-                "address": self._defn.apply_address,
-                "slave": _MODBUS_SLAVE,
-                "value": [1],
-            },
-            blocking=True,
-        )
+        try:
+            await self.coordinator.hub.async_write_float32_word_swap(
+                self._defn.write_address, float(value), self._defn.apply_address
+            )
+        except Exception as exc:
+            _LOGGER.error(
+                "ferroamp_modbus: write FAILED %s = %s: %s", self._defn.key, value, exc
+            )
+            raise
+        _LOGGER.debug("ferroamp_modbus: write OK %s = %s", self._defn.key, value)
         await self.coordinator.async_request_refresh()

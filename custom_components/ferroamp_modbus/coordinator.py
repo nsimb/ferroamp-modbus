@@ -30,10 +30,13 @@ class FerroampModbusCoordinator(DataUpdateCoordinator[dict[str, int | float]]):
             update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
         )
         self._hub = hub
-        # Only the sensors whose scan_interval is the standard interval
         self._sensor_defs = [
             s for s in SENSOR_DEFINITIONS if s.scan_interval == DEFAULT_SCAN_INTERVAL
         ]
+
+    @property
+    def hub(self) -> FerroampModbusHub:
+        return self._hub
 
     async def _async_update_data(self) -> dict[str, int | float]:
         data: dict[str, int | float] = {}
@@ -86,8 +89,13 @@ class FerroampModbusFastCoordinator(DataUpdateCoordinator[dict[str, int | float 
         ]
         self._binary_defs = BINARY_SENSOR_DEFINITIONS
 
+    @property
+    def hub(self) -> FerroampModbusHub:
+        return self._hub
+
     async def _async_update_data(self) -> dict[str, int | float | bool]:
         data: dict[str, int | float | bool] = {}
+        first_error: Exception | None = None
 
         for defn in self._sensor_defs:
             try:
@@ -96,6 +104,8 @@ class FerroampModbusFastCoordinator(DataUpdateCoordinator[dict[str, int | float 
                 )
                 data[defn.key] = value
             except Exception as exc:
+                if first_error is None:
+                    first_error = exc
                 _LOGGER.warning(
                     "Could not read %s (addr %s): %s", defn.key, defn.address, exc
                 )
@@ -109,6 +119,8 @@ class FerroampModbusFastCoordinator(DataUpdateCoordinator[dict[str, int | float 
                 )
                 data[defn.key] = bool(regs[0])
             except Exception as exc:
+                if first_error is None:
+                    first_error = exc
                 _LOGGER.warning(
                     "Could not read binary sensor %s (addr %s): %s",
                     defn.key,
@@ -117,5 +129,10 @@ class FerroampModbusFastCoordinator(DataUpdateCoordinator[dict[str, int | float 
                 )
                 if self.data and defn.key in self.data:
                     data[defn.key] = self.data[defn.key]
+
+        if not data:
+            raise UpdateFailed(
+                f"No fast data could be read from Ferroamp Modbus: {first_error}"
+            )
 
         return data

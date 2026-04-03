@@ -18,6 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _MAX_REGISTERS_PER_READ = 125
 _MODBUS_TIMEOUT = 5  # seconds per request
+_VALIDATION_REGISTER_ADDRESS = 1004
 
 
 class ModbusNotEnabledError(Exception):
@@ -113,9 +114,11 @@ class FerroampModbusHub:
         """Write registers synchronously (must be called from executor thread)."""
         with self._lock:
             self._ensure_connected()
+            _LOGGER.debug("write_registers addr=%s values=%s", address, values)
             resp = self._client.write_registers(address, values)
             if resp.isError():
                 raise ModbusException(f"Write error at {address}: {resp}")
+            _LOGGER.debug("write_registers addr=%s OK (resp=%s)", address, resp)
 
     def _write_register_sync(self, address: int, value: int) -> None:
         """Write a single register synchronously (must be called from executor thread)."""
@@ -132,6 +135,45 @@ class FerroampModbusHub:
                 self._client.close()
                 self._client = None
 
+    def _write_float32_word_swap_with_apply_sync(
+        self, address: int, value: float, apply_address: int
+    ) -> None:
+        """Write float32 value and apply in one locked Modbus transaction sequence."""
+        words = _encode_float32_word_swap(value)
+        with self._lock:
+            self._ensure_connected()
+
+            resp = self._client.write_register(apply_address, 0)
+            if resp.isError():
+                raise ModbusException(f"Write error at {apply_address}: {resp}")
+
+            resp = self._client.write_registers(address, words)
+            if resp.isError():
+                raise ModbusException(f"Write error at {address}: {resp}")
+
+            resp = self._client.write_register(apply_address, 1)
+            if resp.isError():
+                raise ModbusException(f"Write error at {apply_address}: {resp}")
+
+    def _write_register_with_apply_sync(
+        self, address: int, value: int, apply_address: int
+    ) -> None:
+        """Write uint16 value and apply in one locked Modbus transaction sequence."""
+        with self._lock:
+            self._ensure_connected()
+
+            resp = self._client.write_register(apply_address, 0)
+            if resp.isError():
+                raise ModbusException(f"Write error at {apply_address}: {resp}")
+
+            resp = self._client.write_register(address, value)
+            if resp.isError():
+                raise ModbusException(f"Write error at {address}: {resp}")
+
+            resp = self._client.write_register(apply_address, 1)
+            if resp.isError():
+                raise ModbusException(f"Write error at {apply_address}: {resp}")
+
     # ------------------------------------------------------------------
     # Public async API (awaitable from HA coroutines)
     # ------------------------------------------------------------------
@@ -141,9 +183,15 @@ class FerroampModbusHub:
 
         Raises:
             ConnectionError: cannot reach the device.
+            ModbusNotEnabledError: TCP reachable but Modbus register read failed.
         """
         await self._hass.async_add_executor_job(self._ensure_connected)
-        # Leave connection open for re-use.
+        try:
+            await self.async_read_registers(_VALIDATION_REGISTER_ADDRESS, 1, REG_INPUT)
+        except Exception as exc:
+            raise ModbusNotEnabledError(
+                "Connected to host, but Modbus protocol read failed"
+            ) from exc
 
     async def async_close(self) -> None:
         """Close the Modbus TCP connection."""
@@ -179,16 +227,36 @@ class FerroampModbusHub:
     async def async_write_float32_word_swap(
         self, address: int, value: float, apply_address: int
     ) -> None:
-        """Write a float32 value (word-swapped) and pulse the apply register."""
-        words = _encode_float32_word_swap(value)
+        """Write a float32 value (word-swapped) and trigger the apply register.
+
+        Sequence:
+          1. Pre-reset apply register to 0 (FC06) — ensures a clean rising edge.
+          2. Write the float32 value (FC16).
+          3. Trigger apply register to 1 (FC06) — device latches on rising edge.
+
+        No post-reset: the Ferroamp requires the apply register to stay high
+        long enough for it to process. Resetting immediately (< ~500 ms) cancels
+        the apply before the device acts on it.
+        """
         await self._hass.async_add_executor_job(
-            self._write_registers_sync, address, words
+            self._write_float32_word_swap_with_apply_sync,
+            address,
+            value,
+            apply_address,
         )
+
+    async def async_write_register_with_apply(
+        self, address: int, value: int, apply_address: int
+    ) -> None:
+        """Write a uint16 register and trigger the apply register (FC06).
+
+        Same pre-reset / trigger sequence as async_write_float32_word_swap.
+        """
         await self._hass.async_add_executor_job(
-            self._write_registers_sync, apply_address, [1]
-        )
-        await self._hass.async_add_executor_job(
-            self._write_registers_sync, apply_address, [0]
+            self._write_register_with_apply_sync,
+            address,
+            value,
+            apply_address,
         )
 
     async def async_write_register(self, address: int, value: int) -> None:

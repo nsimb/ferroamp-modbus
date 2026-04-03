@@ -6,12 +6,15 @@
         "description": "Enter the Modbus TCP connection details for your Ferroamp Energy Hub.",
         "data": {
           "host": "Host (IP address)",
-          "port": "Port"
+          "port": "Port",
+          "min_value": "Minimum grid limit (W)",
+          "max_value": "Maximum grid limit (W)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Cannot connect to the Ferroamp hub on port 502. Check the IP address and verify that Modbus TCP is enabled on the device. If Modbus TCP has not been activated, contact Ferroamp support.",
+      "cannot_connect": "Cannot connect to the Ferroamp hub. Check the IP address and port, and verify that Modbus TCP is enabled on the device. If Modbus TCP has not been activated, contact Ferroamp support.",
+      "invalid_limits": "Minimum grid limit must be less than or equal to maximum grid limit.",
       "unknown": "Unexpected error. Check the Home Assistant logs for details."
     },
     "abort": {
@@ -24,12 +27,15 @@
         "title": "Ferroamp Modbus Options",
         "data": {
           "host": "Host (IP address)",
-          "port": "Port"
+          "port": "Port",
+          "min_value": "Minimum grid limit (W)",
+          "max_value": "Maximum grid limit (W)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Cannot connect to the Ferroamp hub on port 502. Check the IP address and verify that Modbus TCP is enabled on the device. If Modbus TCP has not been activated, contact Ferroamp support.",
+      "cannot_connect": "Cannot connect to the Ferroamp hub. Check the IP address and port, and verify that Modbus TCP is enabled on the device. If Modbus TCP has not been activated, contact Ferroamp support.",
+      "invalid_limits": "Minimum grid limit must be less than or equal to maximum grid limit.",
       "unknown": "Unexpected error. Check the Home Assistant logs for details."
     }
   }

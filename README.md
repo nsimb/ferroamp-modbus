@@ -1,6 +1,6 @@
 # Ferroamp Modbus — Home Assistant Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/danielolsson100/ferroamp-modbus.svg)](https://github.com/danielolsson100/ferroamp-modbus/releases)
 [![License](https://img.shields.io/github/license/danielolsson100/ferroamp-modbus.svg)](LICENSE)
 
@@ -20,6 +20,7 @@ A Home Assistant custom integration for the **Ferroamp Energy Hub** using Modbus
 
 - **Sensors** — solar power, battery state of charge, grid power, inverter data, energy totals, and more
 - **Binary sensors** — import/export limit active states
+- **Switches** — enable/disable the grid import and export limits with a single toggle
 - **Number controls** — set grid import and export thresholds (W)
 - **Two poll intervals** — fast (5 s) for control registers, standard (30 s) for all others
 - **Config flow** — set up entirely from the Home Assistant UI, no YAML required
@@ -86,12 +87,23 @@ A Home Assistant custom integration for the **Ferroamp Energy Hub** using Modbus
 | Limit Import Active | Whether a grid import limit is currently enforced |
 | Limit Export Active | Whether a grid export limit is currently enforced |
 
+### Switches
+
+| Entity | Description |
+|--------|-------------|
+| Limit Import | Toggle the grid import limit on or off |
+| Limit Export | Toggle the grid export limit on or off |
+
+> **Tip:** Use the switches for quick on/off control of the limits. The Number controls above still let you set the exact threshold values independently.
+
 ### Number Controls
 
 | Entity | Unit | Range | Description |
 |--------|------|-------|-------------|
 | Import Threshold | W | Configurable to match house fuse | Set the grid import power limit |
 | Export Threshold | W | Configurable to match house fuse | Set the grid export power limit |
+
+> **Import/Export Guardrail:** The **Import value must always be equal to or greater than the Export value**. This constraint is enforced in the configuration UI — if you enter an Import value lower than the Export value, the form will show an error and prevent saving. Ensure both thresholds are set consistently when using automations.
 
 ### Example Use Cases
 
@@ -119,18 +131,26 @@ trigger:
     at: '18:00:00'
 condition: []
 action:
-  - service: number.set_value
+  - action: number.set_value
     target:
       entity_id: number.ferroamp_energy_hub_import_threshold
     data:
       value: -11000
-  - service: number.set_value
+  - action: number.set_value
     target:
       entity_id: number.ferroamp_energy_hub_export_threshold
     data:
       value: 11000
 mode: single
 ```
+
+---
+
+## Changelog
+
+### 0.1.0
+- Added **Limit Import** and **Limit Export** switches for easier one-tap control of import/export limiting
+- Fixed a bug introduced in 0.0.5 where the import/export threshold controls failed on a clean Home Assistant installation (coordinators were missing their register-list initialisation — a classic "works on my computer" mistake)
 
 ---
 
