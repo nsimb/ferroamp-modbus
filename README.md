@@ -116,6 +116,11 @@ A Home Assistant custom integration for the **Ferroamp Energy Hub** using Modbus
 3. High electricity price while the sun is shining
    - Set thresholds to sell excess PV energy and use battery power before importing from the grid.
    - Example: Import = 0, Export = 11000.
+4. Negativ electricity price while the sun is shining
+   - Set thresholds to NOT sell excess PV energy and use battery power before importing from the grid.
+   - Example: Import = 0, Export = 0.
+   - Set switch Limit export to on.
+     *access energy will go into battery untill full, then limit solar production to match facility usage.*
 
 ### Automation Example
 
